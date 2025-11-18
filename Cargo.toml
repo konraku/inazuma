@@ -1,0 +1,9 @@
+#依存関係
+[package]
+name = "inazuma"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# ウィンドウ管理と描画ループを担うライブラリ
+eframe = "0.33.2" 
