@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+sysinfo = "0.37.2"
 # ウィンドウ管理と描画ループを担うライブラリ
 eframe = "0.33.2" 
 egui = "0.33.2"
@@ -12,7 +13,7 @@ egui = "0.33.2"
 # Windows API
 windows = { version = "0.62.2", features = [
     "Win32_UI_Input",
-    "Win32_UI_Input_KeyboardAndMouse"
+    "Win32_UI_Input_KeyboardAndMouse",
 ] }
 
 # 追加： ViGEm 仮想コントローラークライアント

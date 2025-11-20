@@ -1,35 +1,45 @@
 use crate::worker::Worker;
 use crate::virtual_pad::VirtualPad;
+use crate::target_Application::TargetApplication;
 use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 // アプリケーションの状態を保持する構造体
 pub struct A {
-    pub selection_key: String,
+    pub selection_process: String,
+    pub selection_button: String,
     pub interval_ms: u64,
     
     // Workerをアプリの状態として持ち続ける
-    // 初期化に失敗する可能性もあるので Option で包むか、ここで初期化する
     worker: Option<Worker>, 
 }
 
 // データの初期化
 impl Default for A {
     fn default() -> Self {
+        TargetApplication::list_running_processes(); 
+
         // アプリ起動時に1回だけコントローラーとWorkerを作る
+        // match:OK/NG
         let worker = match VirtualPad::new() {
             Ok(pad) => {
+                // Arc   :Atomically Reference Countedの略。Reとは異なり、複数のスレッド間でデータを安全に共有
+                // Mutex :読み取り書き込み問わず排他的に処理
+                // Some  :値が存在することを表す
                 let pad = Arc::new(Mutex::new(pad));
                 Some(Worker::new(pad))
             },
             Err(e) => {
                 eprintln!("VirtualPadの接続に失敗しました: {}", e);
+                // None:null相当？
                 None
             }
         };
 
+        // 戻り値
         Self {
-            selection_key: "A".to_string(),
+            selection_process: "pleace selection".to_string(),
+            selection_button: "A".to_string(),
             interval_ms: 50,
             worker, // 作成したワーカーを保持
         }
@@ -50,7 +60,7 @@ impl eframe::App for A {
                 .width(ui.available_width())
                 .show_ui(ui, |ui| {
                     for key in ["ProcessA", "ProcessB", "ProcessC"] {
-                        ui.selectable_value(&mut self.selection_key, key.to_string(), key);
+                        ui.selectable_value(&mut self.selection_process, key.to_string(), key);
                     }
                 });
             ui.add_space(10.0);
@@ -58,18 +68,19 @@ impl eframe::App for A {
             // --- 入力キー選択 ---
             ui.label("Key:");
             egui::ComboBox::from_id_salt("key_combo")
+                .selected_text(&self.selection_button)
                 .width(ui.available_width())
                 .show_ui(ui, |ui| {
                     // ボタンリスト
                     for key in ["A", "B", "X", "Y", "LB", "RB"] {
-                        ui.selectable_value(&mut self.selection_key, key.to_string(), key);
+                        ui.selectable_value(&mut self.selection_button, key.to_string(), key);
                     }
                 });
             ui.add_space(10.0);
 
             // --- 入力間隔選択 ---
             ui.label("Interval (ms):");
-            ui.add(egui::DragValue::new(&mut self.interval_ms).range(10..=100));
+            ui.add(egui::DragValue::new(&mut self.interval_ms).range(100..=10000));
             ui.add_space(20.0);
 
 
@@ -85,7 +96,7 @@ impl eframe::App for A {
                         println!("-------start-------");
                         // ボタンが押された時だけ Worker を開始する
                         if let Some(worker) = &self.worker {
-                            worker.start(self.selection_key.clone(), self.interval_ms);
+                            worker.start(self.selection_button.clone(), self.interval_ms);
                         } else {
                             eprintln!("Workerが初期化されていません");
                         }
