@@ -1,6 +1,6 @@
 use crate::worker::Worker;
 use crate::virtual_pad::VirtualPad;
-use crate::target_Application::TargetApplication;
+use crate::process;
 use std::sync::{Arc, Mutex};
 use eframe::egui;
 
@@ -17,7 +17,8 @@ pub struct A {
 // データの初期化
 impl Default for A {
     fn default() -> Self {
-        TargetApplication::list_running_processes(); 
+
+        process::print_processes_with_window();
 
         // アプリ起動時に1回だけコントローラーとWorkerを作る
         // match:OK/NG
@@ -39,7 +40,7 @@ impl Default for A {
         // 戻り値
         Self {
             selection_process: "pleace selection".to_string(),
-            selection_button: "A".to_string(),
+            selection_button: "B".to_string(),
             interval_ms: 50,
             worker, // 作成したワーカーを保持
         }

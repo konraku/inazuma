@@ -1,7 +1,7 @@
 mod app;
 mod worker;
 mod virtual_pad;
-mod target_Application;//"a"にするとrust-analyzerがファイルを認識しないため、"A"とする
+mod process;
 
 //  メイン
 fn main() -> Result<(), eframe::Error> {
