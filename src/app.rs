@@ -1,6 +1,6 @@
 use crate::worker::Worker;
 use crate::virtual_pad::VirtualPad;
-use crate::process;
+use crate::process::{self, ProcessInfo};
 use std::sync::{Arc, Mutex};
 use eframe::egui;
 
@@ -10,6 +10,9 @@ pub struct A {
     pub selection_button: String,
     pub interval_ms: u64,
     
+    // プロセス一覧を保持
+    processes: Vec<ProcessInfo>,
+    
     // Workerをアプリの状態として持ち続ける
     worker: Option<Worker>, 
 }
@@ -17,51 +20,65 @@ pub struct A {
 // データの初期化
 impl Default for A {
     fn default() -> Self {
-
+        // 起動時にプロセス一覧を取得
+        let processes = process::get_processes_with_window();
+        
+        // デバッグ用にコンソール出力
         process::print_processes_with_window();
 
-        // アプリ起動時に1回だけコントローラーとWorkerを作る
-        // match:OK/NG
+        // 初期選択値（プロセスがあれば最初のものを選択）
+        let initial_process = processes
+            .first()
+            .map(|p| format!("{} - {}", p.name, p.window_title))
+            .unwrap_or_else(|| "プロセスなし".to_string());
+
         let worker = match VirtualPad::new() {
             Ok(pad) => {
-                // Arc   :Atomically Reference Countedの略。Reとは異なり、複数のスレッド間でデータを安全に共有
-                // Mutex :読み取り書き込み問わず排他的に処理
-                // Some  :値が存在することを表す
                 let pad = Arc::new(Mutex::new(pad));
                 Some(Worker::new(pad))
             },
             Err(e) => {
                 eprintln!("VirtualPadの接続に失敗しました: {}", e);
-                // None:null相当？
                 None
             }
         };
 
-        // 戻り値
         Self {
-            selection_process: "pleace selection".to_string(),
+            selection_process: initial_process,
             selection_button: "B".to_string(),
             interval_ms: 50,
-            worker, // 作成したワーカーを保持
+            processes,
+            worker,
         }
     }
 }
 
-//  アプリの状態を定義
 impl eframe::App for A {
-    //  GUIアプリケーションの描画とイベント処理を行うメインループ関数
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-
-        // ウィンドウの中央画面
         egui::CentralPanel::default().show(ctx, |ui| {
 
             // --- プロセス選択 ---
-            ui.label("process:");
+            ui.horizontal(|ui| {
+                ui.label("process:");
+                
+                // 更新ボタン（プロセス一覧を再取得）
+                if ui.button("🔄").clicked() {
+                    self.processes = process::get_processes_with_window();
+                }
+            });
+            
             egui::ComboBox::from_id_salt("process_combo")
+                .selected_text(&self.selection_process)
                 .width(ui.available_width())
                 .show_ui(ui, |ui| {
-                    for key in ["ProcessA", "ProcessB", "ProcessC"] {
-                        ui.selectable_value(&mut self.selection_process, key.to_string(), key);
+                    // 取得したプロセス一覧を表示
+                    for p in &self.processes {
+                        let display = format!("{} - {}", p.name, p.window_title);
+                        ui.selectable_value(
+                            &mut self.selection_process,
+                            display.clone(),
+                            display,
+                        );
                     }
                 });
             ui.add_space(10.0);
@@ -72,7 +89,6 @@ impl eframe::App for A {
                 .selected_text(&self.selection_button)
                 .width(ui.available_width())
                 .show_ui(ui, |ui| {
-                    // ボタンリスト
                     for key in ["A", "B", "X", "Y", "LB", "RB"] {
                         ui.selectable_value(&mut self.selection_button, key.to_string(), key);
                     }
@@ -84,10 +100,10 @@ impl eframe::App for A {
             ui.add(egui::DragValue::new(&mut self.interval_ms).range(100..=10000));
             ui.add_space(20.0);
 
-
             // --- 開始/停止ボタン ---
             ui.horizontal(|ui| {
-                // 左側(開始ボタン)
+
+                //開始
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     let mut blue = ui.visuals().clone();
                     blue.widgets.inactive.bg_fill = egui::Color32::from_rgb(0, 100, 255);
@@ -95,7 +111,6 @@ impl eframe::App for A {
 
                     if ui.button("start").clicked() {
                         println!("-------start-------");
-                        // ボタンが押された時だけ Worker を開始する
                         if let Some(worker) = &self.worker {
                             worker.start(self.selection_button.clone(), self.interval_ms);
                         } else {
@@ -104,16 +119,14 @@ impl eframe::App for A {
                     }
                 });
 
-                // 右側(停止ボタン)
+                //停止
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // 右側（停止ボタン）
                     let mut red = ui.visuals().clone();
                     red.widgets.inactive.bg_fill = egui::Color32::from_rgb(200, 0, 0);
                     ui.visuals_mut().widgets = red.widgets;
 
                     if ui.button("end").clicked() {
                         println!("--------end--------");
-                        // ボタンが押された時だけ Worker を停止する
                         if let Some(worker) = &self.worker {
                             worker.stop();
                         }
