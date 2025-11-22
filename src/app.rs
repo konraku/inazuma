@@ -1,36 +1,33 @@
 use crate::worker::Worker;
 use crate::virtual_pad::VirtualPad;
-use crate::process::{self, ProcessInfo};
+//use crate::process::{self, ProcessInfo};
 use std::sync::{Arc, Mutex};
 use eframe::egui;
 
-// アプリケーションの状態を保持する構造体
 pub struct A {
-    pub selection_process: String,
+    //pub selection_process: String,
     pub selection_button: String,
     pub interval_ms: u64,
-    
-    // プロセス一覧を保持
-    processes: Vec<ProcessInfo>,
-    
-    // Workerをアプリの状態として持ち続ける
-    worker: Option<Worker>, 
+    //processes: Vec<ProcessInfo>,
+    worker: Option<Worker>,
+    is_running: bool,  // 実行状態を追跡
 }
 
 // データの初期化
 impl Default for A {
     fn default() -> Self {
         // 起動時にプロセス一覧を取得
-        let processes = process::get_processes_with_window();
+        //let processes = process::get_processes_with_window();
         
         // デバッグ用にコンソール出力
-        process::print_processes_with_window();
+        //process::print_processes_with_window();
 
-        // 初期選択値（プロセスがあれば最初のものを選択）
+        /*
         let initial_process = processes
             .first()
             .map(|p| format!("{} - {}", p.name, p.window_title))
             .unwrap_or_else(|| "プロセスなし".to_string());
+        */
 
         let worker = match VirtualPad::new() {
             Ok(pad) => {
@@ -44,20 +41,41 @@ impl Default for A {
         };
 
         Self {
-            selection_process: initial_process,
+            //selection_process: initial_process,
             selection_button: "B".to_string(),
             interval_ms: 50,
-            processes,
+            //processes,
             worker,
+            is_running: false,
         }
+    }
+}
+
+impl A {
+    /// 停止処理（共通化）
+    fn stop(&mut self) {
+        if let Some(worker) = &self.worker {
+            worker.stop();
+        }
+        self.is_running = false;
     }
 }
 
 impl eframe::App for A {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        
+        // タイトルを状態に応じて変更
+        let title = if self.is_running {
+            "inazuma - 実行中"
+        } else {
+            "inazuma - 停止"
+        };
+        ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.to_string()));
+
         egui::CentralPanel::default().show(ctx, |ui| {
 
             // --- プロセス選択 ---
+            /*
             ui.horizontal(|ui| {
                 ui.label("process:");
                 
@@ -82,9 +100,11 @@ impl eframe::App for A {
                     }
                 });
             ui.add_space(10.0);
-
+            */
+            
             // --- 入力キー選択 ---
             ui.label("Key:");
+            let prev_button = self.selection_button.clone();
             egui::ComboBox::from_id_salt("key_combo")
                 .selected_text(&self.selection_button)
                 .width(ui.available_width())
@@ -93,46 +113,58 @@ impl eframe::App for A {
                         ui.selectable_value(&mut self.selection_button, key.to_string(), key);
                     }
                 });
+            // キーが変更されたら停止
+            if prev_button != self.selection_button && self.is_running {
+                println!("キー変更により停止");
+                self.stop();
+            }
             ui.add_space(10.0);
 
             // --- 入力間隔選択 ---
             ui.label("Interval (ms):");
+            let prev_interval = self.interval_ms;
             ui.add(egui::DragValue::new(&mut self.interval_ms).range(100..=10000));
+            // 間隔が変更されたら停止
+            if prev_interval != self.interval_ms && self.is_running {
+                println!("間隔変更により停止");
+                self.stop();
+            }
             ui.add_space(20.0);
 
             // --- 開始/停止ボタン ---
-            ui.horizontal(|ui| {
+            let button_height = 40.0;
+            let full_width = ui.available_width();
 
-                //開始
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                    let mut blue = ui.visuals().clone();
-                    blue.widgets.inactive.bg_fill = egui::Color32::from_rgb(0, 100, 255);
-                    ui.visuals_mut().widgets = blue.widgets;
+            // 開始ボタン（青）
+            let start_btn = egui::Button::new(
+                egui::RichText::new("▶ START").size(16.0).color(egui::Color32::WHITE)
+            )
+            .fill(egui::Color32::from_rgb(0, 120, 255))
+            .min_size(egui::vec2(full_width, button_height));
 
-                    if ui.button("start").clicked() {
-                        println!("-------start-------");
-                        if let Some(worker) = &self.worker {
-                            worker.start(self.selection_button.clone(), self.interval_ms);
-                        } else {
-                            eprintln!("Workerが初期化されていません");
-                        }
-                    }
-                });
+            if ui.add(start_btn).clicked() {
+                println!("-------start-------");
+                if let Some(worker) = &self.worker {
+                    worker.start(self.selection_button.clone(), self.interval_ms);
+                    self.is_running = true;
+                } else {
+                    eprintln!("Workerが初期化されていません");
+                }
+            }
 
-                //停止
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let mut red = ui.visuals().clone();
-                    red.widgets.inactive.bg_fill = egui::Color32::from_rgb(200, 0, 0);
-                    ui.visuals_mut().widgets = red.widgets;
+            ui.add_space(8.0);
 
-                    if ui.button("end").clicked() {
-                        println!("--------end--------");
-                        if let Some(worker) = &self.worker {
-                            worker.stop();
-                        }
-                    }
-                });
-            });
+            // 停止ボタン（赤）
+            let stop_btn = egui::Button::new(
+                egui::RichText::new("■ STOP").size(16.0).color(egui::Color32::WHITE)
+            )
+            .fill(egui::Color32::from_rgb(220, 50, 50))
+            .min_size(egui::vec2(full_width, button_height));
+
+            if ui.add(stop_btn).clicked() {
+                println!("--------end--------");
+                self.stop();
+            }
         });
     }
 }

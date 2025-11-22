@@ -8,8 +8,11 @@ fn main() -> Result<(), eframe::Error> {
     // ウィンドウ設定
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([300.0, 200.0]),   //ウィンドウサイズ (幅, 高さ)
-        ..Default::default()                    // その他の設定はデフォルト値
+            .with_inner_size([300.0, 215.0])     //ウィンドウサイズ (幅, 高さ)
+            .with_min_inner_size([300.0, 250.0]) // 最小サイズ（固定用）
+            .with_max_inner_size([300.0, 250.0]) // 最大サイズ（固定用）
+            .with_resizable(false),              // リサイズ不可
+        ..Default::default()                     // その他の設定はデフォルト値
     };
 
     // ウィンドウを起動し、描画ループを開始
