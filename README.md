@@ -13,13 +13,18 @@
 
 ## 必要環境
 - Windows 10/11
-- [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) のインストールが必要です
+- [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) のインストール
+- [inazuma](https://github.com/konraku/inazuma/releases/tag/inazuma)のインストール
 
 ### ViGEmBus のインストール方法
 1. [ViGEmBus Releases](https://github.com/nefarius/ViGEmBus/releases) にアクセス
 2. 最新の `ViGEmBus_Setup_x64.msi` をダウンロード
 3. インストーラーを実行
 4. PCを再起動
+
+### inazumaのインストール方法
+1. [inazuma](https://github.com/konraku/inazuma/releases/tag/inazuma)にアクセス
+2. 最新の`inazuma.exe`をダウンロード
 
 ## 使い方
 1. `inazuma.exe` を起動
